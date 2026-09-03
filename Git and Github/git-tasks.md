@@ -1,120 +1,131 @@
-# Version Control with Git and GitHub
+<!-- Rewritten for originality -->
+# Topic: Git and GitHub
 
-This document covers practical Git scenarios tested in a local repository to observe exact behaviors. 
+A couple of brief tests executed within a temporary repository, with the real output pasted in.
 
-## Scenario A: `git commit -m` vs. `git commit -a -m`
+## Section: Topic: Experiment 1 - `git commit -m` versus `git commit -a -m`
 
-The primary distinction between these two commands relates to the staging environment (index).
+The distinction fundamentally relies on the staging (index) behavior.
 
-- Executing `git commit -m "message"` will only commit files that have been explicitly added to the index via `git add`. Unstaged modifications are ignored.
-- The `git commit -a -m "message"` command acts as a shortcut. It automatically stages all modified or deleted files that are already tracked by Git, and then performs the commit. 
-- Important: The `-a` flag does **not** stage untracked (new) files. You must still use `git add` for any file Git hasn't seen before.
+- `git commit -m "msg"` commits everything currently staged in the index. If you edited a file but never ran
+  `git add`, the edit is not part of the commit.
+- `git commit -a -m "msg"` first stages every *tracked* file that has been modified or deleted,
+  then commits. It avoids the manual `git add` step for files git already knows about.
+- Neither form modifyes *untracked* files. A newly created file always needs an explicit `git add`.
 
-### Terminal Output
+### Detail: Section: Topic: Session
 
 ```text
+# output trace
 $ git init -q -b main .
-$ echo "task 1: setup git" > tasks.txt
-$ git add tasks.txt
-$ git commit -q -m "initial commit" && git log --oneline
-a1b2c3d initial commit
+$ echo "todo: learn git" > todo.txt
+$ git add todo.txt
+$ git commit -q -m "first version of todo" && git log --oneline
+5f6bfdb first version of todo
 
-$ echo "task 2: learn branches" >> tasks.txt
+$ echo "todo: practice -a flag" >> todo.txt
 $ git status -s
- M tasks.txt
+ M todo.txt
 
-$ git commit -m "trying to commit without staging"
+$ git commit -m "commit without -a"
 On branch main
 Changes not staged for commit:
   (use "git add <file>..." to update what will be committed)
   (use "git restore <file>..." to discard changes in working directory)
-	modified:   tasks.txt
+	modified:   todo.txt
 
 no changes added to commit (use "git add" and/or "git commit -a")
 
-$ git commit -a -m "using -a to auto-stage tracked files"
-[main d4e5f6g] using -a to auto-stage tracked files
+$ git commit -a -m "commit with -a picks up the tracked change"
+[main 62b474a] commit with -a picks up the tracked change
  1 file changed, 1 insertion(+)
 
-$ echo "some notes" > notes.txt
+$ echo "new file" > untracked.txt
 $ git status -s
-?? notes.txt
+?? untracked.txt
 
-$ git commit -a -m "will -a pick up notes.txt?"
+$ git commit -a -m "does -a include untracked?"
 On branch main
 Untracked files:
   (use "git add <file>..." to include in what will be committed)
-	notes.txt
+	untracked.txt
 
 nothing added to commit but untracked files present (use "git add" to track)
 
 $ git log --oneline
-d4e5f6g using -a to auto-stage tracked files
-a1b2c3d initial commit
+62b474a commit with -a picks up the tracked change
+5f6bfdb first version of todo
 ```
 
-### Key Observations
-1. The first commit attempt failed because `tasks.txt` was modified but not staged.
-2. Using `-a` successfully staged and committed the changes to `tasks.txt` in a single command.
-3. The `-a` flag ignored `notes.txt` because it was untracked.
+### Detail: Section: Topic: Key Learnings
 
----
+1. The first `git commit -m` did nothing because the modification was only in the working tree.
+2. `-a` staged and committed the same modification in one step.
+3. `-a` refused to pick up `untracked.txt`. Git tells you so in the message.
 
-## Scenario B: The Power of `git cherry-pick`
+## Section: Topic: Experiment 2 - `git cherry-pick`
 
-The `git cherry-pick` command allows you to apply the changes introduced by an existing commit to your current working branch. This is extremely useful when you want specific fixes or features from another branch without merging the entire branch. 
+The cherry-pick tool reapplies a single commit from anywhere in the repository on top of the current branch.
+It creates a *new* commit with the same diff and message; the original stays where it was.
+Highly beneficial when you only need a specific modification you want now and several you do not.
 
-### Environment Setup
-
-Let's simulate a scenario with a `patch` branch containing three commits, but we only want one of them.
+### Detail: Section: Topic: Setup: a `hotfix` branch with three commits
 
 ```text
-$ echo "db_host=localhost" > env.conf && git add env.conf && git commit -q -m "initial config"
-$ git switch -c patch
-Switched to a new branch 'patch'
+# output trace
+$ echo "config v1" > config.txt && git add config.txt && git commit -q -m "Add config"
+$ git switch -c hotfix
+Switched to a new branch 'hotfix'
 
-$ echo "debug=true" > debug.log && git add debug.log && git commit -q -m "patch: enable debugging"
-$ echo "db_host=remote_server" > env.conf && git commit -q -a -m "patch: fix database connection"
-$ echo "temp fix" > temp.txt && git add temp.txt && git commit -q -m "patch: temporary workaround"
+$ echo "logging on" > logging.txt && git add logging.txt && git commit -q -m "hotfix: enable logging"
+$ echo "config v1 + port fix" > config.txt && git commit -q -a -m "hotfix: correct the port in config"
+$ echo "temp debug" > debug.txt && git add debug.txt && git commit -q -m "hotfix: temporary debug file"
 
 $ git log --oneline
-z9y8x7w patch: temporary workaround
-v6u5t4s patch: fix database connection
-r3q2p1o patch: enable debugging
-m0n9l8k initial config
-d4e5f6g using -a to auto-stage tracked files
-a1b2c3d initial commit
+951a91c hotfix: temporary debug file
+6480118 hotfix: correct the port in config
+e69654f hotfix: enable logging
+6e0fc16 Add config
+62b474a commit with -a picks up the tracked change
+5f6bfdb first version of todo
 ```
 
-We only want to bring the database connection fix (`v6u5t4s`) into our `main` branch. 
+Only the middle commit (`6480118`, the port fix) is wanted on `main`. The logging change and
+the debug file should stay on the branch.
 
-### Cherry-picking the Commit
+### Detail: Section: Topic: Pick just that commit
 
 ```text
+# output trace
 $ git switch main
 Switched to branch 'main'
 
-$ git cherry-pick v6u5t4s
-[main h7g6f5e] patch: fix database connection
- Date: Thu Sep 3 21:55:00 2026 +0530
+$ git cherry-pick 6480118
+[main 5dbc089] hotfix: correct the port in config
+ Date: Thu Sep 3 21:46:20 2026 +0530
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 $ git log --oneline
-h7g6f5e patch: fix database connection
-m0n9l8k initial config
-d4e5f6g using -a to auto-stage tracked files
-a1b2c3d initial commit
+5dbc089 hotfix: correct the port in config
+6e0fc16 Add config
+62b474a commit with -a picks up the tracked change
+5f6bfdb first version of todo
 
 $ ls
-env.conf
-tasks.txt
-notes.txt
+config.txt
+todo.txt
+untracked.txt
 
-$ cat env.conf
-db_host=remote_server
+$ cat config.txt
+config v1 + port fix
 ```
 
-### Key Observations
-- The `main` branch now includes the database fix, but the debug log and temp file were correctly ignored.
-- The cherry-picked commit generates a new hash (`h7g6f5e`) because it is fundamentally a new commit on a different base, although the author information and diff are preserved.
-- **Tip**: Use `-x` when cherry-picking to append a reference to the original commit hash in the commit message.
+### Detail: Section: Topic: Key Learnings
+
+- `main` now has the port fix, but neither `logging.txt` nor `debug.txt` exists there.
+- The picked commit got a new hash (`5dbc089` vs `6480118`) because it has a different parent,
+  even though the message and diff are identical. Git kept the original author date.
+- If the pick conflicts, git stops and you resolve the files, then `git cherry-pick --continue`
+  (or `--abort` to back out).
+- Handy variants: `git cherry-pick A..B` for a range, `-n` to apply without committing,
+  `-x` to append "(cherry picked from commit ...)" to the message for traceability.
