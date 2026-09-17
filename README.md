@@ -13,5 +13,9 @@ README with the commands that were run, the output, and screenshots from the run
 | `Docker Fundamentals/` | Half a dozen basic container examples: Node.js, Python, Java, Apache, React, Nginx |
 | `DockerFiles and Images/` | Optimized multi-stage Go compilation, 365 MB toolchain to a 7 MB image |
 | `Docker Networks/` | Containers utilizing multiple networks, host network, bind mounts, overlay networks |
+| `Kubernetes Fundamentals/` | Cluster components, system Pods, node capacity, namespace creation |
+| `Kubernetes Workloads/` | Deployment strategies, ReplicaSets, rolling updates, rollbacks, DaemonSets |
+| `Kubernetes Services/` | Service networking, ClusterIP, NodePort, LoadBalancer, ExternalName, Headless |
+| `Kubernetes Ingress and Config/` | Path and host routing via NGINX Ingress, ConfigMaps, Secrets |
 
-Environment: macOS with Docker Desktop; Linux-only commands were run in Ubuntu 24.04 containers.
+Environment: macOS with Docker Desktop; Linux-only commands were run in Ubuntu 24.04 containers. The Kubernetes exercises are executed on a local single-node Minikube cluster utilizing the Docker driver.
