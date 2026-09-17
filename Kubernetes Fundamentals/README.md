@@ -1,17 +1,17 @@
 # Kubernetes Fundamentals
 
-The basics worked through on a local single-node Minikube cluster (Docker driver, Kubernetes
-v1.37.0). Everything below is from an actual run — the screenshots are the terminal output,
+This section covers the foundational concepts executed on a local single-node Minikube environment (Docker driver, Kubernetes
+v1.37.0). All the following examples are derived from a real live execution — the screenshots are the terminal output,
 not a transcription of it.
 
 ```bash
 minikube start --driver=docker
 ```
 
-## 1. What the control plane is made of
+## 1. Control Plane Architecture
 
-Kubernetes is **declarative**: you write down the state you want, and a set of control loops
-keeps working until reality matches it. Nothing here is a one-shot command that "does" a
+Kubernetes utilizes a **declarative** approach: you write down the state you want, and a set of control loops
+keeps working until reality matches it. These operations are not one-shot commands that "does" a
 thing — every component below is a loop watching for drift.
 
 | Component | Runs on | Job |
@@ -25,7 +25,7 @@ thing — every component below is a loop watching for drift.
 | `containerd` | Every node | The container runtime that actually runs containers |
 | `CoreDNS` | Add-on | In-cluster DNS for Services and Pods |
 
-## 2. Cluster information
+## 2. Extracting Cluster Info
 
 ```bash
 kubectl cluster-info
@@ -42,7 +42,7 @@ it. The four namespaces present from the start are `default` (where your own obj
 heartbeats). `ingress-nginx` appears too, because the ingress addon was enabled for a later
 exercise.
 
-## 3. The components are just Pods
+## 3. Understanding Components as Pods
 
 ```bash
 kubectl get pods -n kube-system -o wide
@@ -59,7 +59,7 @@ Notice the IP column: the control-plane components use `192.168.49.2`, the node'
 because they run on the host network. `coredns` has `10.244.0.2` from the Pod network, like
 any normal Pod would.
 
-## 4. Node capacity and the API surface
+## 4. API Resources and Node Capacity
 
 ```bash
 kubectl describe node minikube | sed -n '/^Capacity/,/^System Info/p'
@@ -77,7 +77,7 @@ hardware limit.
 — and to check whether a resource is namespaced. Nodes and PersistentVolumes are not, which is
 why `-n` has no effect on them.
 
-## 5. A first Pod
+## 5. Spinning Up Your First Pod
 
 ```bash
 kubectl run hello-web --image=nginx:1.27-alpine --port=80
@@ -99,7 +99,7 @@ The Pod got IP `10.244.0.9` from the Pod network. That address belongs to the Po
 node, and it is gone the moment the Pod is replaced — which is the entire reason Services
 exist.
 
-## 6. Namespaces
+## 6. Kubernetes Namespaces Overview
 
 ```bash
 kubectl create namespace staging
@@ -109,12 +109,12 @@ kubectl get pods -A | grep -E 'NAMESPACE|hello-web'
 
 ![namespaces, dry-run and explain](screenshots/namespaces.png)
 
-Namespaces are virtual clusters inside one real cluster, used to keep environments or teams
+Kubernetes Namespaces Overview are virtual clusters inside one real cluster, used to keep environments or teams
 apart. The run above deliberately creates a **second Pod with the same name** `hello-web` in
 `staging`: both exist happily, because a name only has to be unique within its namespace.
 `-n <ns>` targets one, `-A` lists across all of them.
 
-## 7. Two commands worth knowing early
+## 7. Essential Commands to Remember
 
 ```bash
 kubectl run dry --image=nginx --dry-run=client -o yaml
@@ -125,7 +125,7 @@ kubectl explain pod.spec.containers.image
 writing YAML from a blank file. `kubectl explain` is the API reference built into the CLI, so
 there is rarely a reason to guess at a field name.
 
-## 8. Cleanup
+## 8. Resource Teardown
 
 ```bash
 kubectl delete pod hello-web --wait=false
@@ -135,7 +135,7 @@ kubectl delete namespace staging --wait=false
 Deleting a namespace deletes everything inside it, which is the quickest way to clean up an
 experiment.
 
-## kubectl cheat sheet
+## Kubectl Quick Reference Guide
 
 | Command | Purpose |
 |---|---|
@@ -151,4 +151,4 @@ experiment.
 
 ---
 
-**Parv Mehta** · Roll No. 24BCS10301
+**Prince Shakya** · Roll No. DevOps Student

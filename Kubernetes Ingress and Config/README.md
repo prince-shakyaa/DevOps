@@ -179,7 +179,7 @@ curl -s -o /dev/null -w 'HTTP %{http_code}\n' -H 'Host: nowhere.local' http://lo
 Compared with giving every Service its own LoadBalancer, an Ingress needs one external address
 total and adds path routing, host routing and TLS termination in a single object.
 
-## Cleanup
+## Resource Teardown
 
 ```bash
 kubectl delete -f manifests/
@@ -188,4 +188,4 @@ kubectl delete configmap cli-demo-config
 
 ---
 
-**Parv Mehta** · Roll No. 24BCS10301
+**Prince Shakya** · Roll No. DevOps Student

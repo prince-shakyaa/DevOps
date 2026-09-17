@@ -75,7 +75,7 @@ Worth noticing in that output: the four selector-based Services each got their o
 EndpointSlice listing `10.244.0.3:80`, while `webapp-externalname` has none — there is
 nothing for it to point at inside the cluster.
 
-## Cleanup
+## Resource Teardown
 
 ```bash
 kubectl delete -f ClusterIP -f NodePort -f LoadBalancer -f Headless -f ExternalName
@@ -87,4 +87,4 @@ kubectl delete -f webapp-pod.yaml
 
 ---
 
-**Parv Mehta** · Roll No. 24BCS10301
+**Prince Shakya** · Roll No. DevOps Student

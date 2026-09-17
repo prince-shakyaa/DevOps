@@ -1,17 +1,17 @@
 # Kubernetes Workloads
 
-Pods, ReplicaSets, Deployments and DaemonSets, run in that order on the Minikube cluster so
+A detailed look at Pods, ReplicaSets, Deployments, and DaemonSets, run in that order on the Minikube cluster so
 that each one shows what the previous one could not do. Manifests are in
 [`manifests/`](manifests); the screenshots are the real terminal output of the run.
 
 | Object | What it adds over the one above |
 |---|---|
-| **Pod** | The smallest unit — one or more containers sharing an IP and volumes. Nothing restarts it if it dies |
-| **ReplicaSet** | Keeps N matching Pods alive at all times: self-healing and scaling |
-| **Deployment** | Manages ReplicaSets, which buys rolling updates, revision history and rollback |
+| **Pod** | The fundamental execution unit — one or more containers sharing an IP and volumes. Nothing restarts it if it dies |
+| **ReplicaSet** | Maintains N identical Pods continuously at all times: self-healing and scaling |
+| **Deployment** | Controls underlying ReplicaSets, which buys rolling updates, revision history and rollback |
 | **DaemonSet** | One Pod per node, regardless of how many nodes there are |
 
-## 1. A bare Pod is not protected
+## 1. The Vulnerability of a Bare Pod
 
 [`manifests/demo-pod.yaml`](manifests/demo-pod.yaml)
 
@@ -173,7 +173,7 @@ DaemonSets are how log collectors, monitoring agents and CNI plugins are deploye
 | `Completed` | Exited 0 — normal for Jobs, not for a Deployment | Whether it should be long-running |
 | `Terminating` | Shutting down (30s grace period by default) | Stuck? Check finalizers |
 
-## Cleanup
+## Resource Teardown
 
 ```bash
 kubectl delete ds node-metrics-agent
@@ -182,4 +182,4 @@ kubectl delete deployment campus-backend
 
 ---
 
-**Parv Mehta** · Roll No. 24BCS10301
+**Prince Shakya** · Roll No. DevOps Student

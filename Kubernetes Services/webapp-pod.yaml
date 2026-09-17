@@ -12,7 +12,7 @@ data:
       <body style="font-family: system-ui; margin: 3rem">
         <h1>Kubernetes Services Lab</h1>
         <p>Served by the <code>webapp</code> Pod on Minikube.</p>
-        <p>Parv Mehta &middot; 24BCS10301</p>
+        <p>Prince Shakya &middot; DevOps Student</p>
       </body>
     </html>
 ---
