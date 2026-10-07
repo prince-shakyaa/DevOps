@@ -1,0 +1,17 @@
+# Mounts a Secret that was never created -> volume setup fails -> stuck in ContainerCreating.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: fees-gateway
+spec:
+  containers:
+    - name: gateway
+      image: nginx:1.27-alpine
+      volumeMounts:
+        - name: tls
+          mountPath: /etc/fees-tls
+          readOnly: true
+  volumes:
+    - name: tls
+      secret:
+        secretName: fees-gateway-tls

@@ -1,0 +1,10 @@
+# Fixed: the executable name is spelt correctly.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: report-builder
+spec:
+  containers:
+    - name: builder
+      image: python:3.12-alpine
+      command: ["python3", "-c", "import time; print('building semester report', flush=True); time.sleep(3600)"]

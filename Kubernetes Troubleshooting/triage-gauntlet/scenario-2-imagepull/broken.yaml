@@ -1,0 +1,10 @@
+# Image repository that does not exist on Docker Hub.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bus-tracker
+  labels: { gauntlet: "true" }
+spec:
+  containers:
+    - name: tracker
+      image: campusbus/tracker-does-not-exist:3.0

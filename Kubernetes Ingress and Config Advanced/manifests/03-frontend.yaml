@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hostel-frontend-html
+data:
+  index.html: |
+    <!doctype html>
+    <html>
+    <head><title>Hostel Desk</title>
+    <style>body{font-family:sans-serif;background:#f4f1ea;margin:40px}h1{color:#2f5d50}
+    .card{background:#fff;border-radius:8px;padding:20px;max-width:520px;box-shadow:0 2px 6px #0002}</style></head>
+    <body><div class="card">
+    <h1>Hostel Desk</h1>
+    <p>Served by the <b>frontend</b> Service through the NGINX Ingress controller.</p>
+    <p>Room allocation and leave requests live under <code>/api</code>.</p>
+    </div></body></html>
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hostel-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: hostel-frontend }
+  template:
+    metadata:
+      labels: { app: hostel-frontend }
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.27-alpine
+          ports: [{ containerPort: 80 }]
+          volumeMounts:
+            - name: html
+              mountPath: /usr/share/nginx/html
+      volumes:
+        - name: html
+          configMap: { name: hostel-frontend-html }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hostel-frontend
+spec:
+  selector: { app: hostel-frontend }
+  ports: [{ port: 80, targetPort: 80 }]

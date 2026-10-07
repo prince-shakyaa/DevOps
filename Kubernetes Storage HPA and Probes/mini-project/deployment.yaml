@@ -1,0 +1,47 @@
+# Production-style web Deployment: resource requests/limits, all three probes,
+# and content stored on a PersistentVolumeClaim.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notice-web
+  namespace: notice-board
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: notice-web }
+  template:
+    metadata:
+      labels: { app: notice-web }
+    spec:
+      # first Pod to start seeds the volume with a default page if it is empty
+      initContainers:
+        - name: seed
+          image: busybox:1.36
+          command: ["sh", "-c", "[ -f /data/index.html ] || echo '<h1>Campus Notice Board</h1>' > /data/index.html"]
+          volumeMounts:
+            - { name: notices, mountPath: /data }
+      containers:
+        - name: nginx
+          image: nginx:1.27-alpine
+          ports:
+            - { name: http, containerPort: 80 }
+          resources:
+            requests: { cpu: 25m, memory: 32Mi }
+            limits:   { cpu: 200m, memory: 96Mi }
+          startupProbe:
+            httpGet: { path: /, port: http }
+            periodSeconds: 2
+            failureThreshold: 15
+          readinessProbe:
+            httpGet: { path: /, port: http }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /, port: http }
+            periodSeconds: 10
+            failureThreshold: 3
+          volumeMounts:
+            - { name: notices, mountPath: /usr/share/nginx/html }
+      volumes:
+        - name: notices
+          persistentVolumeClaim:
+            claimName: notices-data

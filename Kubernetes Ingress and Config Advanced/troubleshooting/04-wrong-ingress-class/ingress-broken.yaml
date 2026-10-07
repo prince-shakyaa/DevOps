@@ -1,0 +1,16 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: canteen-ingress
+spec:
+  ingressClassName: traefik   # no controller on this cluster serves this class
+  rules:
+    - host: canteen.hostel.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: hostel-frontend
+                port: { number: 80 }

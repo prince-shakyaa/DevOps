@@ -1,0 +1,10 @@
+# Fixed: an image that exists.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bus-tracker
+  labels: { gauntlet: "true" }
+spec:
+  containers:
+    - name: tracker
+      image: nginx:1.27-alpine

@@ -1,0 +1,15 @@
+# Fix for the policy case: explicitly allow clients labelled role=attendance-client.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-attendance-clients
+spec:
+  podSelector:
+    matchLabels: { app: attendance-api }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: { role: attendance-client }
+      ports:
+        - { port: 8080, protocol: TCP }

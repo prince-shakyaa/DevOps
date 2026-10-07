@@ -1,0 +1,18 @@
+# Fixed: the required variable is provided.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: exam-sync
+spec:
+  containers:
+    - name: sync
+      image: busybox:1.36
+      env:
+        - name: EXAM_DB_URL
+          value: "postgres://exams-db:5432/results"
+      command: ["sh", "-c"]
+      args:
+        - |
+          echo "exam-sync starting"
+          if [ -z "$EXAM_DB_URL" ]; then echo "FATAL: EXAM_DB_URL is not set" >&2; exit 1; fi
+          echo "connected to $EXAM_DB_URL"; sleep 3600

@@ -1,0 +1,15 @@
+# Same Pod, but the probe asks for a path nginx doesn't serve -> 404 -> counted as failure.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: canteen-live-broken
+spec:
+  containers:
+    - name: web
+      image: nginx:1.27-alpine
+      ports: [{ containerPort: 80 }]
+      livenessProbe:
+        httpGet: { path: /healthz, port: 80 }
+        initialDelaySeconds: 3
+        periodSeconds: 5
+        failureThreshold: 3

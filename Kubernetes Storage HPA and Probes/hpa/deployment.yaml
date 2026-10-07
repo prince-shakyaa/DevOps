@@ -1,0 +1,21 @@
+# CPU-heavy web app: every request to the hpa-example image runs a busy loop.
+# The CPU *request* is what HPA percentages are measured against.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: result-calculator
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: result-calculator }
+  template:
+    metadata:
+      labels: { app: result-calculator }
+    spec:
+      containers:
+        - name: web
+          image: registry.k8s.io/hpa-example
+          ports: [{ containerPort: 80 }]
+          resources:
+            requests: { cpu: 200m, memory: 64Mi }
+            limits:   { cpu: 500m, memory: 128Mi }

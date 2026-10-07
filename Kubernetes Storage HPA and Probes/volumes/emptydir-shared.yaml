@@ -1,0 +1,20 @@
+# Two containers in one Pod sharing a scratch directory.
+# writer appends a line every 3s, reader serves the same file over HTTP.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: attendance-log
+spec:
+  containers:
+    - name: writer
+      image: busybox:1.36
+      command: ["sh", "-c", "while true; do echo \"$(date +%T) roll-call from $(hostname)\" >> /shared/attendance.log; sleep 3; done"]
+      volumeMounts:
+        - { name: scratch, mountPath: /shared }
+    - name: reader
+      image: nginx:1.27-alpine
+      volumeMounts:
+        - { name: scratch, mountPath: /usr/share/nginx/html }
+  volumes:
+    - name: scratch
+      emptyDir: {}

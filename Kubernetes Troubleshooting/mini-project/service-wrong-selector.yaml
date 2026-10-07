@@ -1,0 +1,9 @@
+# Challenge: the selector now asks for tier=frontend, which no Pod carries
+# (Pods are tier=web) -> the Service silently loses every endpoint.
+apiVersion: v1
+kind: Service
+metadata:
+  name: campus-portal
+spec:
+  selector: { app: campus-portal, tier: frontend }
+  ports: [{ port: 80, targetPort: http }]

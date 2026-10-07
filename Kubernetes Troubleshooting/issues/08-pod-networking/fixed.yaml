@@ -1,0 +1,20 @@
+# Fixed: listen on all interfaces so the Pod IP is reachable.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: attendance-api
+  labels: { app: attendance-api }
+spec:
+  containers:
+    - name: api
+      image: python:3.12-alpine
+      command: ["python", "-m", "http.server", "8080", "--bind", "0.0.0.0"]
+      ports: [{ containerPort: 8080 }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: attendance-api
+spec:
+  selector: { app: attendance-api }
+  ports: [{ port: 80, targetPort: 8080 }]

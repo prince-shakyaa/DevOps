@@ -1,0 +1,20 @@
+# A slow starter: needs ~30s of "warm-up" before it creates /tmp/started.
+# Startup probe budget = failureThreshold x periodSeconds = 12 x 5s = 60s -> enough.
+# Liveness only begins once the startup probe has succeeded.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: marksheet-engine
+spec:
+  terminationGracePeriodSeconds: 2   # sh as PID 1 ignores SIGTERM; don't wait the default 30s
+  containers:
+    - name: engine
+      image: busybox:1.36
+      command: ["sh", "-c", "echo warming up; sleep 30; touch /tmp/started; echo started; sleep 3600"]
+      startupProbe:
+        exec: { command: ["test", "-f", "/tmp/started"] }
+        periodSeconds: 5
+        failureThreshold: 12
+      livenessProbe:
+        exec: { command: ["test", "-f", "/tmp/started"] }
+        periodSeconds: 10

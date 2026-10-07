@@ -1,0 +1,13 @@
+# Fixed: the limit is sized for the real working set (~200 MiB) plus headroom.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: marks-cruncher
+spec:
+  containers:
+    - name: cruncher
+      image: python:3.12-alpine
+      command: ["python", "-c", "import time; data = bytearray(200 * 1024 * 1024); print('loaded', len(data) >> 20, 'MiB', flush=True); time.sleep(3600)"]
+      resources:
+        requests: { memory: 256Mi }
+        limits:   { memory: 320Mi }

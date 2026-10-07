@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: library-app
+spec:
+  containers:
+    - name: app
+      image: busybox:1.36
+      command: ["sh", "-c", "echo fine is $FINE Rs/day; sleep 3600"]
+      env:
+        - name: FINE
+          valueFrom:
+            configMapKeyRef:
+              name: library-config
+              key: FINE_PER_DAY

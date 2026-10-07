@@ -1,0 +1,25 @@
+# Pods are labelled app=grades-api, the Service selects app=grade-api -> no endpoints.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grades-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: grades-api }
+  template:
+    metadata:
+      labels: { app: grades-api }
+    spec:
+      containers:
+        - name: api
+          image: nginx:1.27-alpine
+          ports: [{ containerPort: 80 }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grades-api
+spec:
+  selector: { app: grade-api }     # typo: missing "s"
+  ports: [{ port: 80, targetPort: 80 }]

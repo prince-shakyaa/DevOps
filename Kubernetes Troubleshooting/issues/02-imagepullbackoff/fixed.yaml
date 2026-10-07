@@ -1,0 +1,9 @@
+# Fixed: a tag that exists.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: library-web
+spec:
+  containers:
+    - name: web
+      image: nginx:1.27-alpine

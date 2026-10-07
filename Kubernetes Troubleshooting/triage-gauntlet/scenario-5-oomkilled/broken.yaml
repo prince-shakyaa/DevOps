@@ -1,0 +1,13 @@
+# 150 MiB allocation inside a 48 MiB limit.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hostel-allocator
+  labels: { gauntlet: "true" }
+spec:
+  containers:
+    - name: allocator
+      image: python:3.12-alpine
+      command: ["python", "-c", "b = bytearray(150 * 1024 * 1024); print('done')"]
+      resources:
+        limits: { memory: 48Mi }

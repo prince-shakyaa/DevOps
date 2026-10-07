@@ -1,0 +1,25 @@
+# Fixed: the key name matches the ConfigMap.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: timetable-config
+data:
+  SEMESTER: "odd-2026"
+  SLOT_MINUTES: "50"
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: timetable-app
+spec:
+  containers:
+    - name: app
+      image: busybox:1.36
+      command: ["sh", "-c", "echo semester=$SEMESTER slot=$SLOT_MINUTES; sleep 3600"]
+      env:
+        - name: SEMESTER
+          valueFrom:
+            configMapKeyRef: { name: timetable-config, key: SEMESTER }
+        - name: SLOT_MINUTES
+          valueFrom:
+            configMapKeyRef: { name: timetable-config, key: SLOT_MINUTES }

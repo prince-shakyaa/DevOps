@@ -1,0 +1,16 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: notice-ingress
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: notices.hostel.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: hostel-frontend-svc   # no Service has this name
+                port: { number: 80 }

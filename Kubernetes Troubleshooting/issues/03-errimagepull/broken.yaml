@@ -1,0 +1,10 @@
+# Image from a registry host that does not resolve - the pull fails before
+# any tag lookup can happen.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hostel-portal
+spec:
+  containers:
+    - name: portal
+      image: registry.campus-internal.example/hostel/portal:2.1

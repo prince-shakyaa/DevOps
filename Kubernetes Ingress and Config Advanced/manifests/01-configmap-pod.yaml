@@ -1,0 +1,30 @@
+# One Pod, three ways of consuming ConfigMaps:
+#  1. envFrom       - every key of hostel-settings becomes an env var
+#  2. env.valueFrom - a single key, renamed on the way in
+#  3. volume        - every key of hostel-files becomes a file under /etc/hostel
+apiVersion: v1
+kind: Pod
+metadata:
+  name: config-reader
+spec:
+  containers:
+    - name: reader
+      image: busybox:1.36
+      command: ["sh", "-c", "sleep 3600"]
+      envFrom:
+        - configMapRef:
+            name: hostel-settings
+      env:
+        - name: GUEST_LIMIT
+          valueFrom:
+            configMapKeyRef:
+              name: hostel-settings
+              key: MAX_GUESTS
+      volumeMounts:
+        - name: hostel-files
+          mountPath: /etc/hostel
+          readOnly: true
+  volumes:
+    - name: hostel-files
+      configMap:
+        name: hostel-files

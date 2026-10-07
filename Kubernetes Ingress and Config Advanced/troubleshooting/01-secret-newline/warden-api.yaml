@@ -1,0 +1,54 @@
+# A tiny API that only answers when the X-Api-Key header matches API_KEY exactly,
+# byte for byte - the same check any password or token comparison does.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: warden-api-code
+data:
+  server.py: |
+    import os
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    EXPECTED = os.environ["API_KEY"]
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            ok = self.headers.get("X-Api-Key") == EXPECTED
+            self.send_response(200 if ok else 401)
+            self.end_headers()
+            self.wfile.write(b"leave approved\n" if ok else b"invalid api key\n")
+            print(f"key check: expected={EXPECTED!r} got={self.headers.get('X-Api-Key')!r}", flush=True)
+
+        def log_message(self, *args):
+            pass
+
+    HTTPServer(("", 9000), Handler).serve_forever()
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: warden-api
+  labels: { app: warden-api }
+spec:
+  containers:
+    - name: api
+      image: python:3.12-alpine
+      command: ["python", "-u", "/app/server.py"]
+      env:
+        - name: API_KEY
+          valueFrom:
+            secretKeyRef: { name: warden-api-key, key: API_KEY }
+      ports: [{ containerPort: 9000 }]
+      volumeMounts:
+        - { name: code, mountPath: /app }
+  volumes:
+    - name: code
+      configMap: { name: warden-api-code }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: warden-api
+spec:
+  selector: { app: warden-api }
+  ports: [{ port: 9000 }]

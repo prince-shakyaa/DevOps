@@ -1,0 +1,11 @@
+# Two faults in one Pod: a misspelt image tag, and once that is fixed, a start
+# command that runs a script which is not in the image.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: admissions-worker
+spec:
+  containers:
+    - name: worker
+      image: busybox:1.36.9-uclibc-typo
+      command: ["sh", "/app/process-admissions.sh"]

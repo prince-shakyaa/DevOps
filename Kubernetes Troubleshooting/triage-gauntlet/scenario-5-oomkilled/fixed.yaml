@@ -1,0 +1,13 @@
+# Fixed: limit sized to the real allocation plus headroom.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hostel-allocator
+  labels: { gauntlet: "true" }
+spec:
+  containers:
+    - name: allocator
+      image: python:3.12-alpine
+      command: ["python", "-c", "b = bytearray(150 * 1024 * 1024); print('done', flush=True); import time; time.sleep(3600)"]
+      resources:
+        limits: { memory: 256Mi }

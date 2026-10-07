@@ -1,0 +1,23 @@
+# Fixed: the rates file is provided where the app reads it, from a ConfigMap.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: billing-rates
+data:
+  rates.conf: "standard=60 special=90\n"
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: canteen-billing
+  labels: { gauntlet: "true" }
+spec:
+  containers:
+    - name: billing
+      image: busybox:1.36
+      command: ["sh", "-c", "cat /etc/billing/rates.conf || { echo 'rates.conf missing, giving up'; exit 2; }; sleep 3600"]
+      volumeMounts:
+        - { name: rates, mountPath: /etc/billing }
+  volumes:
+    - name: rates
+      configMap: { name: billing-rates }

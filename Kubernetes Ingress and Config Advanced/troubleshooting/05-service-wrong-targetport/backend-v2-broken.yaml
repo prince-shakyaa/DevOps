@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: hostel-backend-v2
+spec:
+  selector: { app: hostel-backend }
+  ports:
+    - port: 80
+      targetPort: 8080   # container listens on 8000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: backend-v2-ingress
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: v2.hostel.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: hostel-backend-v2
+                port: { number: 80 }

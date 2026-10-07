@@ -1,0 +1,9 @@
+# Fixed: an image from a registry the node can reach.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hostel-portal
+spec:
+  containers:
+    - name: portal
+      image: nginx:1.27-alpine

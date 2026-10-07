@@ -1,0 +1,33 @@
+# A small workload to practise the core debugging commands on.
+# Each replica logs a "lecture started" line every 5s and burns a little CPU.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lecture-hall
+  labels: { app: lecture-hall }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: lecture-hall }
+  template:
+    metadata:
+      labels: { app: lecture-hall }
+    spec:
+      containers:
+        - name: hall
+          image: busybox:1.36
+          command: ["sh", "-c"]
+          args:
+            - |
+              i=0
+              while true; do
+                i=$((i+1))
+                echo "$(date +%T) lecture $i started in $(hostname)"
+                n=0; while [ $n -lt 20000 ]; do n=$((n+1)); done
+                sleep 5
+              done
+          env:
+            - { name: HALL_BLOCK, value: "LT-3" }
+          resources:
+            requests: { cpu: 50m, memory: 16Mi }
+            limits:   { cpu: 200m, memory: 32Mi }

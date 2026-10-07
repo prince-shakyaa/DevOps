@@ -1,0 +1,10 @@
+# Misspelt executable: the runtime cannot even start the process.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: report-builder
+spec:
+  containers:
+    - name: builder
+      image: python:3.12-alpine
+      command: ["pyhton3", "-c", "import time; print('building semester report', flush=True); time.sleep(3600)"]

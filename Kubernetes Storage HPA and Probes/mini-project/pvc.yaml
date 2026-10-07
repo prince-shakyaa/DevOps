@@ -1,0 +1,11 @@
+# Dynamically provisioned by minikube's default "standard" StorageClass.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: notices-data
+  namespace: notice-board
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 256Mi

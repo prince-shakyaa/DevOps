@@ -1,0 +1,11 @@
+# Talks to a Service name that does not exist in this namespace (typo: placment).
+apiVersion: v1
+kind: Pod
+metadata:
+  name: placement-cron
+  labels: { gauntlet: "true" }
+spec:
+  containers:
+    - name: cron
+      image: busybox:1.36
+      command: ["sh", "-c", "while true; do nslookup placment-api 2>/dev/null | grep -q Name: && echo ok || echo \"$(date +%T) cannot resolve placment-api\"; sleep 5; done"]

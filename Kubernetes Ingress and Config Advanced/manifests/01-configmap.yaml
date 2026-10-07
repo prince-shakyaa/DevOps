@@ -1,0 +1,24 @@
+# Two ConfigMaps for the hostel-desk app:
+#  - hostel-settings: flat key/value pairs, consumed as environment variables
+#  - hostel-files:    whole files, consumed as a mounted volume
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hostel-settings
+data:
+  APP_MODE: "staging"
+  HOSTEL_BLOCKS: "A,B,C,D"
+  CHECKIN_WINDOW: "08:00-22:00"
+  MAX_GUESTS: "2"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hostel-files
+data:
+  app.properties: |
+    mess.menu.refresh=daily
+    laundry.slots.per.room=3
+    wifi.ssid=HostelNet-5G
+  welcome.txt: |
+    Welcome to Hostel Desk. Report maintenance issues at the A-block office.

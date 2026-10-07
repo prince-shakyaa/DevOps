@@ -1,0 +1,13 @@
+# The claim asks for storage; it binds to any PV that satisfies class, size and mode.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: results-pvc
+spec:
+  storageClassName: manual
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 500Mi
+  selector:
+    matchLabels: { tier: results }

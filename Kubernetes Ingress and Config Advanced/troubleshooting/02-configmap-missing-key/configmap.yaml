@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: library-config
+data:
+  LIBRARY_HOURS: "09:00-21:00"
+  FINE_PER_DAY: "5"
