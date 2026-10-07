@@ -1,0 +1,17 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ListNoticesBucket",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::prince-campus-notices-24bcs10301"
+    },
+    {
+      "Sid": "ReadNoticeObjects",
+      "Effect": "Allow",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::prince-campus-notices-24bcs10301/notices/*"
+    }
+  ]
+}

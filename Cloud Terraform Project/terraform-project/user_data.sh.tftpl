@@ -1,0 +1,19 @@
+#!/bin/bash
+# cloud-init runs this as root on first boot only
+set -euo pipefail
+
+hostnamectl set-hostname ${hostname}
+
+apt-get update -y
+apt-get install -y nginx curl unzip
+
+# Ubuntu 24.04 dropped the awscli apt package; install AWS CLI v2 instead
+curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-$(uname -m).zip" -o /tmp/awscliv2.zip
+unzip -q /tmp/awscliv2.zip -d /tmp
+/tmp/aws/install
+
+# credentials come from the instance profile, not from this script
+aws s3 cp "s3://${bucket}/site/index.html" /var/www/html/index.html --region ${region}
+echo "<p>served by ${hostname}</p>" >> /var/www/html/index.html
+
+systemctl enable --now nginx

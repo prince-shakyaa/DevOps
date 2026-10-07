@@ -1,0 +1,11 @@
+# Remote state in S3. Copy to backend.tf and run:
+#   terraform init -migrate-state -backend-config=<file>.s3.tfbackend
+# Backend blocks cannot use variables, so environment-specific settings
+# (bucket, endpoint) are passed in from a separate .tfbackend file.
+terraform {
+  backend "s3" {
+    key          = "cloud-terraform-project/terraform.tfstate"
+    encrypt      = true
+    use_lockfile = true # S3-native locking, no DynamoDB table needed
+  }
+}

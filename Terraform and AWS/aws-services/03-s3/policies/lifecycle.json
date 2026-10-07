@@ -1,0 +1,15 @@
+{
+  "Rules": [
+    {
+      "ID": "uploads-to-cheaper-tiers",
+      "Status": "Enabled",
+      "Filter": { "Prefix": "uploads/" },
+      "Transitions": [
+        { "Days": 30, "StorageClass": "STANDARD_IA" },
+        { "Days": 180, "StorageClass": "GLACIER" }
+      ],
+      "NoncurrentVersionExpiration": { "NoncurrentDays": 60 },
+      "AbortIncompleteMultipartUpload": { "DaysAfterInitiation": 7 }
+    }
+  ]
+}
