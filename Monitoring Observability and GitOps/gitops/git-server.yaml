@@ -1,0 +1,46 @@
+# A minimal in-cluster Git server (git daemon) so the demo does not depend on GitHub.
+# The repo is pushed to it through a port-forward; Argo CD pulls from it over git://.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gitops-git
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: git-server
+  namespace: gitops-git
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: git-server }
+  template:
+    metadata:
+      labels: { app: git-server }
+    spec:
+      containers:
+        - name: git
+          image: alpine:3.20
+          command:
+            - sh
+            - -c
+            - |
+              apk add --no-cache git git-daemon >/dev/null
+              [ -d /srv/git/campus-gitops.git ] || git init --bare -b main /srv/git/campus-gitops.git
+              git -C /srv/git/campus-gitops.git config daemon.receivepack true
+              exec git daemon --reuseaddr --export-all --enable=receive-pack --base-path=/srv/git --verbose /srv/git
+          ports: [{ containerPort: 9418 }]
+          volumeMounts:
+            - { name: repos, mountPath: /srv/git }
+      volumes:
+        - name: repos
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: git-server
+  namespace: gitops-git
+spec:
+  selector: { app: git-server }
+  ports: [{ port: 9418 }]

@@ -1,0 +1,18 @@
+# Logs an error and exits every time: shows up as CrashLoopBackOff, in Loki and in alerts.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fee-sync
+  namespace: campus-obs
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: fee-sync }
+  template:
+    metadata:
+      labels: { app: fee-sync }
+    spec:
+      containers:
+        - name: job
+          image: busybox:1.36
+          command: ["sh", "-c", "echo 'level=info msg=\"starting fee sync\"'; sleep 5; echo 'level=error msg=\"connection refused: fees-db:5432\"'; exit 1"]

@@ -1,0 +1,12 @@
+# BROKEN on purpose: depends_on without a condition only waits for the db
+# container to *start*, not for PostgreSQL to accept connections.
+name: lostfound-race
+services:
+  db:
+    image: postgres:16-alpine
+    environment: { POSTGRES_DB: lostfound, POSTGRES_USER: lostfound, POSTGRES_PASSWORD: lostfound }
+  backend:
+    build: ../backend
+    environment: { DB_HOST: db, DB_RETRIES: "1" }
+    depends_on: [db]
+    restart: "no"

@@ -1,0 +1,16 @@
+# BROKEN on purpose: the backend looks for "postgres", but the service is called "db".
+name: lostfound-host
+services:
+  db:
+    image: postgres:16-alpine
+    environment: { POSTGRES_DB: lostfound, POSTGRES_USER: lostfound, POSTGRES_PASSWORD: lostfound }
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lostfound"]
+      interval: 3s
+      retries: 10
+  backend:
+    build: ../backend
+    environment: { DB_HOST: postgres, DB_RETRIES: "2" }
+    depends_on:
+      db: { condition: service_healthy }
+    restart: "no"

@@ -1,0 +1,20 @@
+# Running but never Ready: readiness probe points at a port nothing listens on.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: library-search
+  namespace: campus-obs
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: library-search }
+  template:
+    metadata:
+      labels: { app: library-search }
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.27-alpine
+          readinessProbe:
+            tcpSocket: { port: 8081 }
+            periodSeconds: 5

@@ -1,0 +1,10 @@
+# Lean Argo CD for a laptop: no HA, no Dex SSO, no notifications.
+# helm install argocd argo/argo-cd -n argocd --create-namespace -f argocd-values.yaml
+dex: { enabled: false }
+notifications: { enabled: false }
+applicationSet: { replicas: 1 }
+configs:
+  params:
+    server.insecure: true
+  cm:
+    timeout.reconciliation: 30s   # poll Git every 30s instead of 3 min

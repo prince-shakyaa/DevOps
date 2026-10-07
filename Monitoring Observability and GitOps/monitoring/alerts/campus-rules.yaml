@@ -1,0 +1,38 @@
+# Custom alerts for the campus-obs namespace, loaded by the Prometheus Operator.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: campus-rules
+  namespace: campus-obs
+spec:
+  groups:
+    - name: campus.rules
+      rules:
+        - alert: CampusApiHigh5xxRate
+          expr: |
+            sum(rate(http_requests_total{namespace="campus-obs",status=~"5.."}[2m]))
+              / sum(rate(http_requests_total{namespace="campus-obs"}[2m])) > 0.05
+          for: 1m
+          labels: { severity: warning, team: campus }
+          annotations:
+            summary: "campus-api is answering more than 5% of requests with 5xx"
+            description: "5xx ratio is {{ $value | humanizePercentage }} over the last 2 minutes."
+        - alert: CampusPodRestarting
+          expr: increase(kube_pod_container_status_restarts_total{namespace="campus-obs"}[5m]) > 2
+          for: 1m
+          labels: { severity: critical, team: campus }
+          annotations:
+            summary: "{{ $labels.pod }} restarted {{ $value | printf \"%.0f\" }} times in 5 minutes"
+        - alert: CampusPodNotReady
+          expr: kube_pod_status_ready{namespace="campus-obs",condition="false"} == 1
+          for: 2m
+          labels: { severity: warning, team: campus }
+          annotations:
+            summary: "{{ $labels.pod }} has not been Ready for 2 minutes"
+        - alert: CampusHighCpu
+          expr: |
+            sum by (pod) (rate(container_cpu_usage_seconds_total{namespace="campus-obs",container!=""}[2m])) > 0.2
+          for: 1m
+          labels: { severity: info, team: campus }
+          annotations:
+            summary: "{{ $labels.pod }} is using {{ $value | printf \"%.2f\" }} CPU cores"

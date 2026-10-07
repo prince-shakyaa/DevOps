@@ -1,0 +1,53 @@
+# podinfo stands in for a real API: it exposes Prometheus metrics on /metrics,
+# writes structured JSON logs, and has /healthz and /readyz endpoints.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: campus-api
+  namespace: campus-obs
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: campus-api }
+  template:
+    metadata:
+      labels: { app: campus-api }
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/stefanprodan/podinfo:6.7.1
+          command: ["./podinfo", "--port=9898", "--level=info", "--ui-message=Campus API"]
+          ports:
+            - { name: http, containerPort: 9898 }
+          resources:
+            requests: { cpu: 20m, memory: 32Mi }
+            limits: { memory: 128Mi }
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: campus-api
+  namespace: campus-obs
+  labels: { app: campus-api }
+spec:
+  selector: { app: campus-api }
+  ports:
+    - { name: http, port: 9898, targetPort: http }
+---
+# Tells the Prometheus Operator to scrape every endpoint of the Service above.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: campus-api
+  namespace: campus-obs
+spec:
+  selector:
+    matchLabels: { app: campus-api }
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s

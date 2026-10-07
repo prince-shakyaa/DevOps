@@ -1,0 +1,21 @@
+# Burns CPU and holds ~150Mi of memory so it stands out on the dashboards.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grade-crunch
+  namespace: campus-obs
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: grade-crunch }
+  template:
+    metadata:
+      labels: { app: grade-crunch }
+    spec:
+      containers:
+        - name: stress
+          image: polinux/stress:1.0.4
+          command: ["stress", "--cpu", "1", "--vm", "1", "--vm-bytes", "150M", "--vm-hang", "0"]
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { cpu: 400m, memory: 256Mi }

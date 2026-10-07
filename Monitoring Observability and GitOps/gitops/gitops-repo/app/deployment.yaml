@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: campus-portal
+  namespace: campus-portal
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: campus-portal }
+  template:
+    metadata:
+      labels: { app: campus-portal }
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.26-alpine
+          ports: [{ containerPort: 80 }]
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }

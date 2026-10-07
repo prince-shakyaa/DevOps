@@ -1,0 +1,52 @@
+name: lostfound
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-lostfound}
+      POSTGRES_USER: ${POSTGRES_USER:-lostfound}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lostfound}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    networks: [backend-net]
+
+  backend:
+    build: ./backend
+    environment:
+      DB_HOST: db
+      DB_NAME: ${POSTGRES_DB:-lostfound}
+      DB_USER: ${POSTGRES_USER:-lostfound}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-lostfound}
+    depends_on:
+      db:
+        condition: service_healthy     # wait for pg_isready, not just "container started"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    networks: [backend-net, frontend-net]
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3100:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [frontend-net]
+
+volumes:
+  pgdata:
+
+networks:
+  backend-net:      # db is reachable only from the backend
+  frontend-net:

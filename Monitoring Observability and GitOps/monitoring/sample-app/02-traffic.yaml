@@ -1,0 +1,27 @@
+# Steady traffic: mostly 200s, some 404s and a few slow and 500 responses.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: traffic
+  namespace: campus-obs
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: traffic }
+  template:
+    metadata:
+      labels: { app: traffic }
+    spec:
+      containers:
+        - name: curl
+          image: curlimages/curl:8.10.1
+          command:
+            - sh
+            - -c
+            - |
+              while true; do
+                for p in / /api/info /env /missing-page; do curl -s -o /dev/null http://campus-api:9898$p; done
+                curl -s -o /dev/null http://campus-api:9898/status/500
+                curl -s -o /dev/null http://campus-api:9898/delay/1
+                sleep 0.5
+              done
