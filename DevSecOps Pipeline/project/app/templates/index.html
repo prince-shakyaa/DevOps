@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Campus Notice Board</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; }
+    .notice { border-left: 4px solid #2a6; padding: .4rem .8rem; margin: .8rem 0; background: #f6f8f7; }
+    .cat { font-size: .75rem; text-transform: uppercase; color: #555; }
+  </style>
+</head>
+<body>
+  <h1>Campus Notice Board</h1>
+  {% for n in notices %}
+  <div class="notice">
+    <div class="cat">{{ n.category }}</div>
+    <strong>{{ n.title }}</strong>
+    <p>{{ n.body }}</p>
+  </div>
+  {% endfor %}
+  <footer>v{{ version }}</footer>
+</body>
+</html>

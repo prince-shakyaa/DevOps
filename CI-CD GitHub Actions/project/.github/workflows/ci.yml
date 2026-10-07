@@ -1,0 +1,118 @@
+# CI: every push and pull request is linted, tested on a Python matrix,
+# built into a Docker image, and the image itself is smoke-tested.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE_NAME: campus-grade-api
+
+jobs:
+  lint:
+    name: Lint (flake8 + hadolint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install flake8
+        run: pip install flake8==7.3.0
+      - name: flake8
+        run: flake8 app tests
+      - name: hadolint Dockerfile
+        run: docker run --rm -i hadolint/hadolint:latest-debian hadolint --ignore DL3008 - < Dockerfile
+
+  test:
+    name: Test (py${{ matrix.python-version }})
+    needs: lint
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Run pytest with coverage gate
+        run: pytest --junitxml=junit.xml --cov-report=xml
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: test-reports-py${{ matrix.python-version }}
+          path: |
+            junit.xml
+            coverage.xml
+
+  build:
+    name: Build image
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image and source bundle
+        run: ./build.sh ci
+      - name: Save image as tarball
+        run: docker save "${IMAGE_NAME}:ci" | gzip > image.tar.gz
+      - name: Upload build bundle
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: build-bundle
+          path: build/
+      - name: Upload image
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: docker-image
+          path: image.tar.gz
+          retention-days: 3
+
+  integration-test:
+    name: Container smoke test
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4.3.0
+        with:
+          name: docker-image
+      - name: Load image
+        run: gunzip -c image.tar.gz | docker load
+      - name: Start container with the API key from secrets
+        env:
+          GRADE_API_KEY: ${{ secrets.GRADE_API_KEY }}
+        run: |
+          test -n "$GRADE_API_KEY" || { echo "GRADE_API_KEY secret is not set"; exit 1; }
+          echo "GRADE_API_KEY is available (${#GRADE_API_KEY} characters)"
+          docker rm -f grade-smoke 2>/dev/null || true
+          docker run -d --name grade-smoke -p 18000:8000 -e API_KEY="$GRADE_API_KEY" "${IMAGE_NAME}:ci"
+          for i in $(seq 1 20); do curl -fs http://localhost:18000/health && break; sleep 1; done
+      - name: Smoke-test the endpoints
+        env:
+          GRADE_API_KEY: ${{ secrets.GRADE_API_KEY }}
+        run: |
+          set -x
+          curl -fsS http://localhost:18000/
+          curl -fsS "http://localhost:18000/api/grade?marks=78"
+          curl -fsS -X POST -H 'Content-Type: application/json' \
+            -d '{"courses":[{"marks":91,"credits":4},{"marks":67,"credits":2}]}' http://localhost:18000/api/sgpa
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:18000/api/secure/report)" = 401
+          curl -fsS -H "X-API-Key: $GRADE_API_KEY" http://localhost:18000/api/secure/report
+      - name: Stop container
+        if: always()
+        run: docker rm -f grade-smoke || true

@@ -1,0 +1,90 @@
+# CD: runs only after CI has gone green on main (or by hand), publishes the
+# image to a registry and deploys it to a throwaway kind cluster.
+name: CD
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: cd-main
+  cancel-in-progress: false
+
+env:
+  # ghcr.io on GitHub; a local registry:2 container when the pipeline is run with act
+  REGISTRY: ${{ vars.REGISTRY || 'ghcr.io' }}
+
+jobs:
+  publish:
+    name: Publish image
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.tag.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compute image reference
+        id: tag
+        run: |
+          OWNER="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
+          SHORT="$(git rev-parse --short=7 HEAD)"
+          echo "short=$SHORT" >> "$GITHUB_OUTPUT"
+          echo "image=${REGISTRY}/${OWNER}/campus-grade-api:sha-${SHORT}" >> "$GITHUB_OUTPUT"
+      - name: Log in to GHCR
+        if: env.REGISTRY == 'ghcr.io'
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Build and push
+        env:
+          IMAGE: ${{ steps.tag.outputs.image }}
+        run: |
+          docker build --build-arg GIT_SHA="${{ steps.tag.outputs.short }}" -t "$IMAGE" .
+          docker tag "$IMAGE" "${IMAGE%:*}:latest"
+          docker push "$IMAGE"
+          docker push "${IMAGE%:*}:latest"
+          echo "Published $IMAGE" >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    name: Deploy to Kubernetes (kind)
+    needs: publish
+    runs-on: ubuntu-latest
+    env:
+      IMAGE: ${{ needs.publish.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: grade-cd
+      - name: Load the published image into the cluster
+        run: |
+          docker pull "$IMAGE"
+          kind load docker-image "$IMAGE" --name grade-cd
+      - name: Apply manifests
+        env:
+          GRADE_API_KEY: ${{ secrets.GRADE_API_KEY }}
+        run: |
+          kubectl create secret generic grade-api-key --from-literal=API_KEY="$GRADE_API_KEY" \
+            --dry-run=client -o yaml | kubectl apply -f -
+          sed "s|IMAGE_PLACEHOLDER|${IMAGE}|" k8s/deployment.yaml | kubectl apply -f -
+          kubectl apply -f k8s/service.yaml
+          kubectl rollout status deployment/campus-grade-api --timeout=180s
+          kubectl get deploy,pods,svc -l app=campus-grade-api -o wide
+      - name: Smoke test through the Service
+        env:
+          GRADE_API_KEY: ${{ secrets.GRADE_API_KEY }}
+        run: |
+          kubectl port-forward svc/campus-grade-api 18080:80 >/dev/null 2>&1 &
+          for i in $(seq 1 20); do curl -fs http://localhost:18080/health && break; sleep 1; done
+          echo
+          curl -fsS http://localhost:18080/
+          echo
+          curl -fsS "http://localhost:18080/api/grade?marks=93"
+          echo
+          curl -fsS -H "X-API-Key: $GRADE_API_KEY" http://localhost:18080/api/secure/report

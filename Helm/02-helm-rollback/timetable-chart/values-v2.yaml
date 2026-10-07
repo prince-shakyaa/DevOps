@@ -1,0 +1,6 @@
+# Revision 2 - more replicas and a new banner (a good change)
+replicaCount: 3
+page:
+  release: "v2"
+  banner: "Odd semester timetable - lab slots added"
+  colour: "#1f4e79"

@@ -1,0 +1,32 @@
+# Project-specific Semgrep rules, run alongside the p/python and p/flask registry packs
+rules:
+  - id: campus-flask-debug-enabled
+    languages: [python]
+    severity: ERROR
+    message: Flask debug mode exposes the Werkzeug debugger (remote code execution). Never enable it outside a laptop.
+    pattern-either:
+      - pattern: $APP.run(..., debug=True, ...)
+      - pattern: $APP.config["DEBUG"] = True
+
+  - id: campus-subprocess-shell-true
+    languages: [python]
+    severity: ERROR
+    message: subprocess with shell=True and a non-literal command allows shell injection. Pass an argument list.
+    patterns:
+      - pattern-either:
+          - pattern: subprocess.$F($CMD, ..., shell=True, ...)
+      - pattern-not: subprocess.$F("...", ..., shell=True, ...)
+
+  - id: campus-yaml-unsafe-load
+    languages: [python]
+    severity: ERROR
+    message: yaml.load without SafeLoader can construct arbitrary Python objects. Use yaml.safe_load.
+    patterns:
+      - pattern: yaml.load(...)
+      - pattern-not: yaml.load(..., Loader=yaml.SafeLoader, ...)
+
+  - id: campus-hardcoded-notify-token
+    languages: [python]
+    severity: ERROR
+    message: Notification-service token committed in source. Load it from a Kubernetes Secret instead.
+    pattern-regex: cnb_live_[a-z0-9]{32}

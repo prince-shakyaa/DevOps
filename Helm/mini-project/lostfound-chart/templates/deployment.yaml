@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "lostfound.fullname" . }}
+  labels:
+    {{- include "lostfound.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "lostfound.selector" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "lostfound.selector" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      containers:
+        - name: api
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["python", "/app/server.py"]
+          env:
+            - name: PORT
+              value: {{ .Values.app.port | quote }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "lostfound.fullname" . }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.app.port }}
+          readinessProbe:
+            httpGet: { path: {{ .Values.probes.path }}, port: http }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: {{ .Values.probes.path }}, port: http }
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: code
+              mountPath: /app
+      volumes:
+        - name: code
+          configMap:
+            name: {{ include "lostfound.fullname" . }}
+            items:
+              - { key: server.py, path: server.py }

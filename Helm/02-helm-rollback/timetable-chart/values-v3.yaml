@@ -1,0 +1,7 @@
+# Revision 3 - a bad release: the image tag does not exist
+image:
+  tag: 1.27-alpine-doesnotexist
+page:
+  release: "v3"
+  banner: "Timetable v3 (broken image)"
+  colour: "#8b1e1e"

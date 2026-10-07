@@ -1,0 +1,6 @@
+Lost-and-found board ({{ .Values.environment }}) is revision {{ .Release.Revision }}.
+{{- if eq .Values.service.type "NodePort" }}
+  NodePort: {{ .Values.service.nodePort }}
+{{- end }}
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "lostfound.fullname" . }} 8086:{{ .Values.service.port }}
+  curl localhost:8086/

@@ -1,0 +1,33 @@
+# Defaults = development
+environment: development
+replicaCount: 1
+
+image:
+  repository: python
+  tag: 3.12-alpine
+  pullPolicy: IfNotPresent
+
+app:
+  port: 8000
+  campus: "Bhopal"
+  items:
+    - "Blue water bottle - Library, 2nd floor"
+    - "Casio fx-991 calculator - Exam hall B"
+
+service:
+  type: ClusterIP
+  port: 80
+  nodePort: null
+
+resources:
+  requests: { cpu: 25m, memory: 32Mi }
+  limits:   { cpu: 100m, memory: 64Mi }
+
+probes:
+  path: /healthz
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPU: 70

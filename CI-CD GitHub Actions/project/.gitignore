@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.coverage
+coverage.xml
+junit.xml
+htmlcov/
+build/
+image.tar.gz
+
+# local act configuration (never committed)
+.secrets
+.vars
+.actrc

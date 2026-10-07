@@ -1,0 +1,2 @@
+Timetable {{ .Values.page.release }} deployed as revision {{ .Release.Revision }}.
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "timetable.fullname" . }} 8085:{{ .Values.service.port }}

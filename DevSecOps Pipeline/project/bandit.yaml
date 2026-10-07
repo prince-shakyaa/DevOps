@@ -1,0 +1,4 @@
+# Bandit SAST configuration
+exclude_dirs: ["tests", ".venv"]
+# B101 (assert) only matters outside tests, and tests are excluded anyway
+skips: ["B101"]

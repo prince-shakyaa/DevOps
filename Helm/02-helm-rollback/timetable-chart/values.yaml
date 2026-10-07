@@ -1,0 +1,12 @@
+# Revision 1 - first release of the timetable page
+replicaCount: 1
+image:
+  repository: nginx
+  tag: 1.27-alpine
+page:
+  release: "v1"
+  banner: "Odd semester timetable"
+  colour: "#2f5d50"
+service:
+  type: ClusterIP
+  port: 80

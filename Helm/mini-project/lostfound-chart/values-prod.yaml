@@ -1,0 +1,13 @@
+environment: production
+replicaCount: 3
+service:
+  type: NodePort
+  nodePort: 30480
+resources:
+  requests: { cpu: 50m, memory: 48Mi }
+  limits:   { cpu: 250m, memory: 128Mi }
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 6
+  targetCPU: 70

@@ -1,0 +1,13 @@
+# Gitleaks: keep every built-in rule, add one for our own token format
+[extend]
+useDefault = true
+
+[[rules]]
+id = "campus-notify-token"
+description = "Campus notification-service API token"
+regex = '''cnb_live_[a-z0-9]{32}'''
+keywords = ["cnb_live_"]
+
+[allowlist]
+description = "test fixtures never hold real credentials"
+paths = ['''tests/.*''']

@@ -1,0 +1,315 @@
+# DevSecOps pipeline: build + test, then four kinds of security scanning,
+# one security gate that decides, and only then push + deploy.
+# Scanner jobs never fail on findings themselves - they report a blocking
+# count as a job output, and the gate is the single place that says no.
+name: DevSecOps
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  IMAGE_NAME: campus-notice-board
+  TRIVY_VERSION: v0.75.0
+  GITLEAKS_VERSION: 8.30.1
+  REGISTRY: ${{ vars.REGISTRY || 'ghcr.io' }}
+
+jobs:
+  # ------------------------------------------------------------------ 1
+  build-test:
+    name: Build and unit test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install pinned dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Byte-compile and import check
+        run: |
+          python -m compileall -q app
+          python -c "from app.app import app; print(sorted(r.rule for r in app.url_map.iter_rules()))"
+      - name: Unit tests (coverage must be >= 80%)
+        run: pytest --junitxml=reports/junit.xml --cov-report=xml:reports/coverage.xml
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: test-reports
+          path: reports/
+
+  # ------------------------------------------------------------------ 2
+  sast:
+    name: SAST (Bandit, Semgrep, Trivy config)
+    needs: build-test
+    runs-on: ubuntu-latest
+    outputs:
+      bandit: ${{ steps.bandit.outputs.count }}
+      semgrep: ${{ steps.semgrep.outputs.count }}
+      iac: ${{ steps.iac.outputs.count }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install scanners
+        run: |
+          pip install bandit==1.9.4 semgrep==1.179.0
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin "$TRIVY_VERSION"
+          mkdir -p reports
+      - name: Bandit
+        id: bandit
+        run: |
+          bandit -c bandit.yaml -r app -f json -o reports/bandit.json || true
+          bandit -c bandit.yaml -r app --severity-level medium --confidence-level medium || true
+          n=$(jq '[.results[] | select((.issue_severity=="MEDIUM" or .issue_severity=="HIGH") and (.issue_confidence=="MEDIUM" or .issue_confidence=="HIGH"))] | length' reports/bandit.json)
+          echo "count=$n" >> "$GITHUB_OUTPUT"; echo "Bandit blocking findings: $n"
+      - name: Semgrep
+        id: semgrep
+        run: |
+          semgrep scan --config .semgrep.yml --config p/python --config p/flask --metrics=off \
+            --json --output reports/semgrep.json app || true
+          jq -r '.results[] | "\(.extra.severity)\t\(.check_id | split(".") | last)\t\(.path):\(.start.line)"' reports/semgrep.json
+          n=$(jq '[.results[] | select(.extra.severity=="ERROR")] | length' reports/semgrep.json)
+          echo "count=$n" >> "$GITHUB_OUTPUT"; echo "Semgrep blocking findings: $n"
+      - name: Trivy config (Dockerfile + Kubernetes manifests)
+        id: iac
+        run: |
+          trivy config --quiet --severity HIGH,CRITICAL --format json --output reports/trivy-config.json .
+          trivy config --quiet --severity HIGH,CRITICAL .
+          n=$(jq '[.Results[]?.Misconfigurations[]? | select(.Status=="FAIL")] | length' reports/trivy-config.json)
+          echo "count=$n" >> "$GITHUB_OUTPUT"; echo "IaC blocking findings: $n"
+      - uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: sast-reports
+          path: reports/
+
+  # ------------------------------------------------------------------ 3
+  sca:
+    name: SCA (pip-audit, Trivy fs)
+    needs: build-test
+    runs-on: ubuntu-latest
+    outputs:
+      pipaudit: ${{ steps.pipaudit.outputs.count }}
+      trivyfs: ${{ steps.trivyfs.outputs.count }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install scanners
+        run: |
+          pip install pip-audit==2.10.1
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin "$TRIVY_VERSION"
+          mkdir -p reports
+      - name: pip-audit (PyPI / OSV advisories)
+        id: pipaudit
+        run: |
+          pip-audit -r requirements.txt -f json -o reports/pip-audit.json || true
+          pip-audit -r requirements.txt || true
+          n=$(jq '[.dependencies[].vulns[]] | length' reports/pip-audit.json)
+          echo "count=$n" >> "$GITHUB_OUTPUT"; echo "pip-audit blocking findings: $n"
+      - name: Trivy fs (dependency CVEs)
+        id: trivyfs
+        run: |
+          trivy fs --quiet --scanners vuln --severity HIGH,CRITICAL --format json --output reports/trivy-fs.json .
+          trivy fs --quiet --scanners vuln --severity HIGH,CRITICAL .
+          n=$(jq '[.Results[]?.Vulnerabilities[]?] | length' reports/trivy-fs.json)
+          echo "count=$n" >> "$GITHUB_OUTPUT"; echo "Trivy fs blocking findings: $n"
+      - name: SBOM (CycloneDX)
+        run: trivy fs --quiet --format cyclonedx --output reports/sbom.cdx.json .
+      - uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: sca-reports
+          path: reports/
+
+  # ------------------------------------------------------------------ 4
+  secrets:
+    name: Secret scan (Gitleaks, full history)
+    needs: build-test
+    runs-on: ubuntu-latest
+    outputs:
+      gitleaks: ${{ steps.gitleaks.outputs.count }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # every commit, not just the tip - deleted secrets are still leaked secrets
+      - name: Install Gitleaks
+        run: |
+          arch=$(uname -m); case "$arch" in x86_64) arch=x64;; aarch64) arch=arm64;; esac
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_${arch}.tar.gz" \
+            | tar -xz -C /usr/local/bin gitleaks
+          gitleaks version
+      - name: Gitleaks
+        id: gitleaks
+        run: |
+          mkdir -p reports
+          gitleaks git . --config .gitleaks.toml --redact --report-format json --report-path reports/gitleaks.json --exit-code 0
+          jq -r '.[] | "\(.RuleID)\t\(.File):\(.StartLine)\tcommit \(.Commit[0:7])\t\(.Secret)"' reports/gitleaks.json
+          n=$(jq 'length' reports/gitleaks.json)
+          echo "count=$n" >> "$GITHUB_OUTPUT"; echo "Gitleaks blocking findings: $n"
+      - uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: secret-scan-report
+          path: reports/
+
+  # ------------------------------------------------------------------ 5
+  docker-build:
+    name: Docker build and smoke test
+    needs: build-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build --build-arg GIT_SHA="${GITHUB_SHA::7}" -t "${IMAGE_NAME}:${GITHUB_SHA::7}" .
+      - name: Smoke-test the container (read-only root filesystem)
+        run: |
+          docker rm -f nb-smoke 2>/dev/null || true
+          docker run -d --name nb-smoke --read-only --tmpfs /tmp -p 18080:8080 "${IMAGE_NAME}:${GITHUB_SHA::7}"
+          for i in $(seq 1 20); do curl -fs http://localhost:18080/health && break; sleep 1; done
+          echo; curl -fsS http://localhost:18080/api/version
+          docker inspect --format 'user={{.Config.User}}' "${IMAGE_NAME}:${GITHUB_SHA::7}"
+          docker rm -f nb-smoke
+      - name: Save the exact image that will be scanned
+        run: docker save "${IMAGE_NAME}:${GITHUB_SHA::7}" -o image.tar
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: image
+          path: image.tar
+          retention-days: 3
+
+  # ------------------------------------------------------------------ 6
+  image-scan:
+    name: Container image scan (Trivy)
+    needs: docker-build
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.scan.outputs.count }}
+    steps:
+      - uses: actions/download-artifact@v4.3.0
+        with:
+          name: image
+      - name: Install Trivy
+        run: curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin "$TRIVY_VERSION"
+      - name: Trivy image (fixable HIGH/CRITICAL + embedded secrets)
+        id: scan
+        run: |
+          mkdir -p reports
+          trivy image --quiet --input image.tar --scanners vuln,secret --severity HIGH,CRITICAL --ignore-unfixed \
+            --format json --output reports/trivy-image.json
+          trivy image --quiet --input image.tar --scanners vuln,secret --severity HIGH,CRITICAL --ignore-unfixed
+          n=$(jq '[.Results[]? | (.Vulnerabilities // [])[], (.Secrets // [])[]] | length' reports/trivy-image.json)
+          echo "count=$n" >> "$GITHUB_OUTPUT"; echo "Image blocking findings: $n"
+      - name: Full-severity report (informational)
+        run: trivy image --quiet --input image.tar --scanners vuln --format table --output reports/trivy-image-all.txt && tail -n +1 reports/trivy-image-all.txt | head -20
+      - uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: image-scan-report
+          path: reports/
+
+  # ------------------------------------------------------------------ 7
+  security-gate:
+    name: Security gate
+    needs: [sast, sca, secrets, image-scan]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Decide
+        env:
+          BANDIT: ${{ needs.sast.outputs.bandit }}
+          SEMGREP: ${{ needs.sast.outputs.semgrep }}
+          IAC: ${{ needs.sast.outputs.iac }}
+          PIPAUDIT: ${{ needs.sca.outputs.pipaudit }}
+          TRIVYFS: ${{ needs.sca.outputs.trivyfs }}
+          GITLEAKS: ${{ needs.secrets.outputs.gitleaks }}
+          IMAGE: ${{ needs.image-scan.outputs.image }}
+          UPSTREAM: ${{ join(needs.*.result, ' ') }}
+        run: |
+          blocked=0
+          row() {
+            local name="$1" policy="$2" n="${3:-missing}" verdict=PASS
+            [[ "$n" =~ ^[0-9]+$ ]] || n="missing"
+            # fail closed: anything that is not a clean integer (missing, skipped job) blocks
+            if ! [[ "$n" =~ ^[0-9]+$ ]] || [ "$n" -gt 0 ]; then verdict=BLOCK; blocked=1; fi
+            printf '| %-20s | %-37s | %8s | %-6s |\n' "$name" "$policy" "$n" "$verdict"
+          }
+          echo "## Security Gate"
+          printf '| %-20s | %-37s | %8s | %-6s |\n' "Check" "Blocking policy" "Findings" "Result"
+          row "SAST - Bandit"      "severity>=MEDIUM & confidence>=MEDIUM" "$BANDIT"
+          row "SAST - Semgrep"     "rule severity ERROR"                   "$SEMGREP"
+          row "IaC - Trivy config" "HIGH/CRITICAL misconfiguration"        "$IAC"
+          row "SCA - pip-audit"    "any known vulnerability"               "$PIPAUDIT"
+          row "SCA - Trivy fs"     "HIGH/CRITICAL CVE"                     "$TRIVYFS"
+          row "Secrets - Gitleaks" "any secret in full git history"        "$GITLEAKS"
+          row "Image - Trivy"      "fixable HIGH/CRITICAL or secret"       "$IMAGE"
+          echo "upstream job results: $UPSTREAM"
+          case " $UPSTREAM " in *" failure "*|*" cancelled "*|*" skipped "*) blocked=1;; esac
+          if [ "$blocked" -ne 0 ]; then echo "GATE CLOSED - image will not be pushed or deployed"; exit 1; fi
+          echo "GATE OPEN - all checks within policy"
+
+  # ------------------------------------------------------------------ 8
+  push:
+    name: Push image
+    needs: [security-gate, docker-build]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.push.outputs.image }}
+    steps:
+      - uses: actions/download-artifact@v4.3.0
+        with:
+          name: image
+      - name: Log in to GHCR
+        if: env.REGISTRY == 'ghcr.io'
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Push the scanned image (no rebuild)
+        id: push
+        run: |
+          docker load -i image.tar
+          owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          target="${REGISTRY}/${owner}/${IMAGE_NAME}:sha-${GITHUB_SHA::7}"
+          docker tag "${IMAGE_NAME}:${GITHUB_SHA::7}" "$target"
+          docker push "$target"
+          echo "image=$target" >> "$GITHUB_OUTPUT"
+
+  # ------------------------------------------------------------------ 9
+  deploy:
+    name: Deploy to Kubernetes
+    needs: push
+    runs-on: ubuntu-latest
+    env:
+      IMAGE: ${{ needs.push.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: helm/kind-action@v1
+        with:
+          cluster_name: devsecops
+      - name: Load image and apply manifests
+        run: |
+          docker pull "$IMAGE"
+          kind load docker-image "$IMAGE" --name devsecops
+          kubectl apply -f k8s/namespace.yaml
+          sed "s|IMAGE_PLACEHOLDER|${IMAGE}|" k8s/deployment.yaml | kubectl apply -f -
+          kubectl apply -f k8s/service.yaml
+          kubectl -n notice-board rollout status deploy/notice-board --timeout=180s
+          kubectl -n notice-board get deploy,pods -o wide
+      - name: Smoke test through the Service
+        run: |
+          kubectl -n notice-board port-forward svc/notice-board 18081:80 >/dev/null 2>&1 &
+          for i in $(seq 1 20); do curl -fs http://localhost:18081/health && break; sleep 1; done
+          echo; curl -fsS http://localhost:18081/api/version
+          echo; curl -fsS "http://localhost:18081/api/notices?category=exam"

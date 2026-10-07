@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: campus-grade-api
+  labels:
+    app: campus-grade-api
+spec:
+  type: ClusterIP
+  selector:
+    app: campus-grade-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

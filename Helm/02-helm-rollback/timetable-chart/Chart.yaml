@@ -1,0 +1,6 @@
+apiVersion: v2
+name: timetable
+description: Class timetable page served by nginx, used to practise upgrade and rollback
+type: application
+version: 1.0.0
+appVersion: "1.27"
